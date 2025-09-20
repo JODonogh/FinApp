@@ -1,24 +1,21 @@
-springBoot {
-    mainClass = "com.holistic.user.UserProfileServiceApplication"
-}
-
 plugins {
-	java
-	id("org.springframework.boot") version "3.5.4"
-	id("io.spring.dependency-management") version "1.1.7"
+    java
+    id("org.springframework.boot") version "3.5.4"
+    id("io.spring.dependency-management") version "1.1.7"
+    id("jacoco") // <-- ADD THIS LINE
 }
 
 group = "com.jodonoghue"
 version = "0.0.1-SNAPSHOT"
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
@@ -26,9 +23,14 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     runtimeOnly("org.postgresql:postgresql")
+    
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.testcontainers:postgresql:1.19.8") // <-- ADD THIS LINE
+    testImplementation("org.testcontainers:junit-jupiter")
 }
 
+jacocoTestReport.dependsOn test
+
 tasks.withType<Test> {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }
