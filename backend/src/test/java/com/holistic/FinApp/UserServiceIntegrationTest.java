@@ -1,0 +1,103 @@
+package com.holistic.user;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.holistic.user.dto.UserDto;
+import com.holistic.user.model.User;
+import com.holistic.user.repository.UserRepository;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@Testcontainers
+@AutoConfigureMockMvc
+public class UserServiceIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Container
+    public static PostgreSQLContainer<?> postgreSQLContainer =
+        new PostgreSQLContainer<>("postgres:15-alpine")
+            .withDatabaseName("testdb")
+            .withUsername("testuser")
+            .withPassword("testpass");
+
+    @DynamicPropertySource
+    static void setProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgreSQLContainer::getJdbcUrl);
+        registry.add("spring.datasource.username", postgreSQLContainer::getUsername);
+        registry.add("spring.datasource.password", postgreSQLContainer::getPassword);
+    }
+
+    @Test
+    void testCreateUserEndpoint() throws Exception {
+        UserDto newUserDto = new UserDto(null, "John Doe", "john.doe@example.com", "securepassword123");
+        String jsonRequest = objectMapper.writeValueAsString(newUserDto);
+
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonRequest))
+            .andExpect(status().isCreated())
+            .andExpect(MockMvcResultMatchers.jsonPath("$.name").value("John Doe"))
+            .andExpect(MockMvcResultMatchers.jsonPath("$.email").value("john.doe@example.com"));
+
+        assertThat(userRepository.findByEmail("john.doe@example.com")).isPresent();
+    }
+    
+    // Test to ensure validation works by sending an invalid request
+@Test
+void testCreateUserValidationFails() throws Exception {
+    UserDto invalidUserDto = new UserDto(null, "", "invalid-email", "pass");
+    String jsonRequest = objectMapper.writeValueAsString(invalidUserDto);
+
+    mockMvc.perform(post("/api/users")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(jsonRequest))
+        .andExpect(status().isBadRequest())
+        .andExpect(MockMvcResultMatchers.jsonPath("$.name").value("Name is mandatory"))
+        .andExpect(MockMvcResultMatchers.jsonPath("$.email").value("Email should be valid"))
+        .andExpect(MockMvcResultMatchers.jsonPath("$.password").value("Password must be at least 8 characters long"));
+}
+    
+    // Test to ensure the DELETE endpoint works
+    @Test
+    void testDeleteUserEndpoint() throws Exception {
+        User userToDelete = new User(null, "Delete Me", "delete.me@example.com", "password");
+        userToDelete = userRepository.save(userToDelete);
+
+        mockMvc.perform(delete("/api/users/{id}", userToDelete.getId()))
+            .andExpect(status().isNoContent());
+
+        assertThat(userRepository.findById(userToDelete.getId())).isNotPresent();
+    }
+
+    @Test
+    void testGetUserByIdEndpoint() throws Exception {
+        User user = new User(null, "Read Me", "read.me@example.com", "password");
+        user = userRepository.save(user);
+
+        mockMvc.perform(get("/api/users/{id}", user.getId()))
+                .andExpect(status().isOk())
+                .andExpect(MockMvcResultMatchers.jsonPath("$.name").value("Read Me"));
+    }
+}

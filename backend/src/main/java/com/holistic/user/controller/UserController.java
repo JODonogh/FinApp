@@ -43,5 +43,24 @@ public class UserController {
         return userService.getAllUsers().stream()
                 .map(user -> new UserDto(user.getId(), user.getName(), user.getEmail(), null))
                 .collect(Collectors.toList());
+    } 
+
+    @PutMapping("/{id}")
+    public ResponseEntity<UserDto> updateUser(@PathVariable Long id, @Valid @RequestBody UserDto userDto) {
+        // Find existing user, update, and save
+        User updatedUser = userService.updateUser(id, userDto);
+        UserDto updatedUserDto = new UserDto(
+            updatedUser.getId(),
+            updatedUser.getName(),
+            updatedUser.getEmail(),
+            null
+        );
+        return new ResponseEntity<>(updatedUserDto, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }

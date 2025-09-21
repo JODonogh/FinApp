@@ -2,7 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.4"
     id("io.spring.dependency-management") version "1.1.7"
-    id("jacoco") // <-- ADD THIS LINE
+    id("jacoco") 
 }
 
 group = "com.jodonoghue"
@@ -29,8 +29,18 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
 }
 
-jacocoTestReport.dependsOn test
-
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
+}
+
+tasks.named<JacocoReport>("jacocoTestReport") {
+    dependsOn(tasks.test)
+
+    reports {
+        xml.required = true
+        csv.required = false
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("reports/jacoco/test/html")
+    }
 }
