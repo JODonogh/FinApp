@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 @SpringBootTest
 @Testcontainers
@@ -100,4 +101,40 @@ void testCreateUserValidationFails() throws Exception {
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.name").value("Read Me"));
     }
+
+    // Test for duplicate email
+    @Test
+    void testCreateUserWithDuplicateEmailFails() throws Exception {
+        // First, create a user successfully
+        User existingUser = new User(null, "Existing User", "test@example.com", "password123");
+        userRepository.save(existingUser);
+
+        // Now, try to create another user with the same email
+        UserDto duplicateEmailUserDto = new UserDto(null, "Another User", "test@example.com", "securepassword");
+        String jsonRequest = objectMapper.writeValueAsString(duplicateEmailUserDto);
+
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonRequest))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("A resource with the given unique identifier already exists."));
+    }
+
+    // Test for duplicate name
+    @Test
+    void testCreateUserWithDuplicateNameFails() throws Exception {
+        // First, create a user successfully
+        User existingUser = new User(null, "Unique Name", "unique@example.com", "password123");
+        userRepository.save(existingUser);
+
+        // Now, try to create another user with the same name
+        UserDto duplicateNameUserDto = new UserDto(null, "Unique Name", "another@example.com", "securepassword");
+        String jsonRequest = objectMapper.writeValueAsString(duplicateNameUserDto);
+
+        mockMvc.perform(post("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonRequest))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("A resource with the given unique identifier already exists."));
+        }
 }

@@ -1,6 +1,7 @@
 package com.holistic.user.service;
 
 import com.holistic.user.dto.UserDto;
+import com.holistic.user.exception.UserNotFoundException;
 import com.holistic.user.model.User;
 import com.holistic.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,8 +16,7 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    public User createUser(User user) {
-        // In a real app, we'd hash the password here before saving
+    public User createUser(User user){
         return userRepository.save(user);
     }
 
@@ -28,19 +28,18 @@ public class UserService {
         return userRepository.findAll();
     }
 
-    // In UserService.java
     public User updateUser(Long id, UserDto userDto) {
         return userRepository.findById(id).map(user -> {
             user.setName(userDto.name());
             user.setEmail(userDto.email());
-            // Password logic will be added later with Bcrypt
+
             return userRepository.save(user);
-        }).orElseThrow(() -> new RuntimeException("User not found with id " + id));
+        }).orElseThrow(() -> new UserNotFoundException("User not found with id " + id));
     }
 
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
-            throw new RuntimeException("User not found with id " + id);
+            throw new UserNotFoundException("User not found with id " + id);
         }
         userRepository.deleteById(id);
     }

@@ -1,5 +1,6 @@
 package com.holistic.user.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -19,10 +20,12 @@ public class User {
     private Long id;
 
     @NotBlank(message = "Name is mandatory")
+    @Column(unique = true)
     private String name;
 
     @NotBlank(message = "Email is mandatory")
     @Email(message = "Email should be valid")
+    @Column(unique = true)
     private String email;
 
     @NotBlank(message = "Password is required")
