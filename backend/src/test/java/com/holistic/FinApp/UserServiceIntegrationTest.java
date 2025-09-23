@@ -1,6 +1,9 @@
 package com.holistic.user;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.holistic.user.controller.UserController;
 import com.holistic.user.dto.UserDto;
 import com.holistic.user.model.User;
 import com.holistic.user.repository.UserRepository;
@@ -9,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,6 +36,9 @@ public class UserServiceIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired 
+    private UserController userController;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -79,19 +86,42 @@ void testCreateUserValidationFails() throws Exception {
         .andExpect(MockMvcResultMatchers.jsonPath("$.email").value("Email should be valid"))
         .andExpect(MockMvcResultMatchers.jsonPath("$.password").value("Password must be at least 8 characters long"));
 }
-    
-    // Test to ensure the DELETE endpoint works
-    @Test
-    void testDeleteUserEndpoint() throws Exception {
-        User userToDelete = new User(null, "Delete Me", "delete.me@example.com", "password");
-        userToDelete = userRepository.save(userToDelete);
 
-        mockMvc.perform(delete("/api/users/{id}", userToDelete.getId()))
-            .andExpect(status().isNoContent());
+ @Test
+        void testUpdateUserEndpoint() throws Exception{
+        //Given a user exists
+        User existingUser = new User(12122L, "John Doe", "john.doe@example.com", "password");
+        existingUser = userRepository.save(existingUser);
 
-        assertThat(userRepository.findById(userToDelete.getId())).isNotPresent();
+        // When: A PUT request is made to update the user
+        UserDto updateUserDto = new UserDto(existingUser.getId(),  "Updated Name", "updated@example.com", "newpassword");
+        String jsonRequest = objectMapper.writeValueAsString(updateUserDto);
+
+        mockMvc.perform(put("/api/users/{id}", existingUser.getId())
+               .contentType(MediaType.APPLICATION_JSON)
+               .content(jsonRequest)) 
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.name").value("Updated Name"))
+               .andExpect(jsonPath("$.email").value("updated@example.com"));
+         
+        // Then: The user is updated in the database
+        User updatedUser = userRepository.findById(existingUser.getId()).get();
+        assertThat(updatedUser.getName()).isEqualTo("Updated Name");       
+        assertThat(updatedUser.getEmail()).isEqualTo("updated@example.com");       
     }
 
+        @Test
+        void testDeleteUser(){
+            // Given: A user exists
+            User userToDelete = new User(null, "Delete Me", "delete.me@example.com", "password");
+            userToDelete = userRepository.save(userToDelete);
+
+            mockMvc.perform(delete("/api/users/{id}", userToDelete.getId()))
+                    .andExpect(status().isNoContent());
+
+            assertThat(userRepository.findById(userToDelete.getId())).isNotPresent();
+        }
+    
     @Test
     void testGetUserByIdEndpoint() throws Exception {
         User user = new User(null, "Read Me", "read.me@example.com", "password");
@@ -100,24 +130,6 @@ void testCreateUserValidationFails() throws Exception {
         mockMvc.perform(get("/api/users/{id}", user.getId()))
                 .andExpect(status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.name").value("Read Me"));
-    }
-
-    // Test for duplicate email
-    @Test
-    void testCreateUserWithDuplicateEmailFails() throws Exception {
-        // First, create a user successfully
-        User existingUser = new User(null, "Existing User", "test@example.com", "password123");
-        userRepository.save(existingUser);
-
-        // Now, try to create another user with the same email
-        UserDto duplicateEmailUserDto = new UserDto(null, "Another User", "test@example.com", "securepassword");
-        String jsonRequest = objectMapper.writeValueAsString(duplicateEmailUserDto);
-
-        mockMvc.perform(post("/api/users")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonRequest))
-                .andExpect(status().isConflict())
-                .andExpect(content().string("A resource with the given unique identifier already exists."));
     }
 
     // Test for duplicate name
@@ -136,5 +148,35 @@ void testCreateUserValidationFails() throws Exception {
                 .content(jsonRequest))
                 .andExpect(status().isConflict())
                 .andExpect(content().string("A resource with the given unique identifier already exists."));
+        }        
+        
+       
+       @Test
+        void testCreateUserWithDuplicateEmailFails() throws Exception {
+            // Given: A user exists with a specific email
+            User existingUser = new User(null, "Existing User", "test@example.com", "password123");
+            userRepository.save(existingUser);
+
+            // When: We try to create a new user with the same email
+            UserDto duplicateEmailUserDto = new UserDto(null, "Another User", "test@example.com", "securepassword");
+            String jsonRequest = objectMapper.writeValueAsString(duplicateEmailUserDto);
+
+            // Then: The API should return a 409 Conflict
+            mockMvc.perform(post("/api/users")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(jsonRequest))
+                    .andExpect(status().isConflict())
+                    .andExpect(content().string("A resource with the given unique identifier already exists."));
         }
+
+        @Test
+        void testGetUserNotFound() throws Exception {
+            // Given: A user ID that does not exist in the database
+            Long nonExistentId = 9999L;
+
+            // When: We try to get the non-existent user
+            mockMvc.perform(get("/api/users/{id}", nonExistentId))
+                    .andExpect(status().isNotFound())
+                    .andExpect(content().string("User not found with ID: " + nonExistentId));
+        }   
 }
