@@ -1,0 +1,23 @@
+Points
+Input values for storage in database
+Values under two headings- save/spend
+Updates the piechart to show how much is being saved and how much is being 
+piechart updates live
+
+Algorithm
+
+Inputs
+User input values in input boxes
+Inputs are sent to the API endpoint
+Java API sends values to the database for storage
+
+Dynamic Values
+Frontend loads
+Frontend calls backend API 
+Values are populated in Inputs
+Values are broken into two groups save and spend. Save is tax, budgetting, bank. Spend is stocks, bonds
+Values are summarised into two columns- save or spend 
+
+Piechart
+Onload values are taken from values 
+Chart updates to show the proportions between save and spend
